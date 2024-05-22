@@ -1,23 +1,26 @@
-use bytes::BytesMut;
+use bytes::{Buf, BytesMut};
 use enum_dispatch::enum_dispatch;
 use thiserror::Error;
 
-mod simple_string;
 mod frame;
+mod simple_string;
+mod null;
 
 pub use frame::*;
-pub use simple_string::*;
+
+pub use self::{
+    simple_string::*,
+    null::RespNull,
+};
 
 const BUF_CAP: usize = 4096;
 const CRLF: &[u8] = b"\r\n";
 const CRLF_LENGTH: usize = CRLF.len();
 
-
 #[enum_dispatch]
 pub trait RespEncode {
     fn encode(self) -> Vec<u8>;
 }
-
 
 pub trait RespDecode: Sized {
     const PREFIX: &'static str;
@@ -27,8 +30,7 @@ pub trait RespDecode: Sized {
     fn expect_length(buf: &[u8]) -> Result<usize, RespError>;
 }
 
-
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq)]
 pub enum RespError {
     #[error("Frame not enough data")]
     NotComplete,
@@ -38,12 +40,35 @@ pub enum RespError {
 }
 
 
+fn extract_fixed_data(buf: &mut BytesMut,
+                      expect: &str,
+                      expect_type: &str,
+) -> Result<(), RespError> {
+    if buf.len() < expect.len() {
+        return Err(RespError::NotComplete);
+    }
+    if !buf.starts_with(expect.as_bytes()) {
+        return Err(RespError::InvalidFrameType(format!(
+            "expert frame type:{},but get  {:?}",
+            expect_type, buf
+        )));
+    }
+
+    buf.advance(expect.len());
+
+    Ok(())
+}
+
+
 fn extract_simple_from_data(buf: &[u8], prefix: &str) -> Result<usize, RespError> {
     if buf.len() < 3 {
         return Err(RespError::NotComplete);
     }
     if !buf.starts_with(prefix.as_bytes()) {
-        return Err(RespError::InvalidFrameType(format!("expert frame type:{},but get  {}", prefix, buf)));
+        return Err(RespError::InvalidFrameType(format!(
+            "expert frame type:{},but get  {:?}",
+            prefix, buf
+        )));
     }
 
     let end = find_crlf(buf, 1).ok_or(RespError::NotComplete)?;

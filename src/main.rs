@@ -1,7 +1,6 @@
 use anyhow::Result;
+use simple_redis::{network, Backend};
 use tracing::info;
-use simple_redis::{Backend, network};
-
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -13,17 +12,16 @@ async fn main() -> Result<()> {
 
     let backend = Backend::new();
 
-
     loop {
         let (stream, raddr) = listener.accept().await?;
 
-        info!("Accepted connection from:{}",raddr);
+        info!("Accepted connection from:{}", raddr);
 
         let cloned_backend = backend.clone();
         tokio::spawn(async move {
             match network::stream_handler(stream, cloned_backend).await {
-                Ok(_) => info!("Connection from {} existed",raddr),
-                Err(e) => info!("handle error for {}:{}",raddr,e),
+                Ok(_) => info!("Connection from {} existed", raddr),
+                Err(e) => info!("handle error for {}:{}", raddr, e),
             }
         });
     }

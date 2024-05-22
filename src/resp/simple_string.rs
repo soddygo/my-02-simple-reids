@@ -1,8 +1,8 @@
-use bytes::BytesMut;
+use crate::resp::{extract_simple_from_data, CRLF_LENGTH};
 use crate::{RespDecode, RespEncode, RespError, RespFrame};
-use crate::resp::{CRLF_LENGTH, extract_simple_from_data};
+use bytes::BytesMut;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SimpleString(pub(crate) String);
 
 impl SimpleString {
@@ -10,7 +10,6 @@ impl SimpleString {
         SimpleString(s.into())
     }
 }
-
 
 impl RespEncode for SimpleString {
     fn encode(self) -> Vec<u8> {
@@ -37,11 +36,11 @@ impl RespDecode for SimpleString {
     }
 }
 
-
 #[cfg(test)]
 mod test {
     use super::*;
     use anyhow::Result;
+    use bytes::BufMut;
     use tokio_util::codec::Framed;
 
     #[test]
@@ -52,5 +51,26 @@ mod test {
 
         Ok(())
     }
-}
 
+    #[test]
+    fn test_simple_string_decode() -> Result<()> {
+        let mut buf = BytesMut::new();
+        buf.extend_from_slice(b"+OK\r\n");
+
+        let frame = SimpleString::decode(&mut buf)?;
+
+        assert_eq!(frame, SimpleString::new("OK".to_string()));
+
+        buf.extend_from_slice(b"+hello\r");
+
+        let ret = SimpleString::decode(&mut buf);
+        assert_eq!(ret.unwrap_err(), RespError::NotComplete);
+
+        buf.put_u8(b'\n');
+
+        let frame = SimpleString::decode(&mut buf)?;
+        assert_eq!(frame, SimpleString::new("hello".to_string()));
+
+        Ok(())
+    }
+}
