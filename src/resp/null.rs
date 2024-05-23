@@ -1,10 +1,9 @@
-use bytes::BytesMut;
-use crate::{RespDecode, RespEncode, RespError};
 use crate::resp::extract_fixed_data;
+use crate::{RespDecode, RespEncode, RespError};
+use bytes::BytesMut;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct RespNull;
-
 
 impl RespEncode for RespNull {
     fn encode(self) -> Vec<u8> {

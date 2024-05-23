@@ -48,17 +48,22 @@ pub async fn stream_handler(stream: TcpStream, backend: Backend) -> Result<()> {
             Some(Err(err)) => return Err(err),
             None => return Ok(()),
         }
+        info!("stream end");
+        return Ok(());
     }
 }
 
 async fn request_handle(req: RedisRequest) -> Result<RedisResponse> {
-    let (frame, backend) = (req.frame, req.backend);
-    let cmd = Command::try_from(frame)?;
-
-    info!("execute cmd: {:?}", cmd);
-    let response_frame = cmd.execute(backend);
-
-    Ok(RedisResponse { frame: response_frame })
+    todo!()
+    // let (frame, backend) = (req.frame, req.backend);
+    // let cmd = Command::try_from(frame)?;
+    //
+    // info!("execute cmd: {:?}", cmd);
+    // let response_frame = cmd.execute(&backend);
+    //
+    // Ok(RedisResponse {
+    //     frame: response_frame,
+    // })
 }
 
 impl Encoder<RespFrame> for RespFrameCodec {
@@ -77,7 +82,8 @@ impl Decoder for RespFrameCodec {
     type Error = anyhow::Error;
 
     fn decode(&mut self, src: &mut bytes::BytesMut) -> Result<Option<Self::Item>, Self::Error> {
-        match RespFrame::decode(src) {
+        let res = RespFrame::decode(src);
+        match res {
             Ok(frame) => Ok(Some(frame)),
             Err(RespError::NotComplete) => Ok(None),
             Err(err) => Err(err.into()),

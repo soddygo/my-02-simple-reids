@@ -1,4 +1,4 @@
-use crate::resp::{extract_simple_from_data, CRLF_LENGTH};
+use crate::resp::{extract_simple_frame_data, CRLF_LENGTH};
 use crate::{RespDecode, RespEncode, RespError, RespFrame};
 use bytes::BytesMut;
 
@@ -21,7 +21,7 @@ impl RespDecode for SimpleString {
     const PREFIX: &'static str = "+";
 
     fn decode(buf: &mut BytesMut) -> Result<Self, RespError> {
-        let end: usize = extract_simple_from_data(buf, Self::PREFIX)?;
+        let end: usize = extract_simple_frame_data(buf, Self::PREFIX)?;
 
         let data = buf.split_to(end + CRLF_LENGTH);
 
@@ -30,7 +30,7 @@ impl RespDecode for SimpleString {
     }
 
     fn expect_length(buf: &[u8]) -> Result<usize, RespError> {
-        let end: usize = extract_simple_from_data(buf, Self::PREFIX)?;
+        let end: usize = extract_simple_frame_data(buf, Self::PREFIX)?;
 
         Ok(end + CRLF_LENGTH)
     }

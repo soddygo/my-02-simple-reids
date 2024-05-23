@@ -1,16 +1,25 @@
 use bytes::{Buf, BytesMut};
 use enum_dispatch::enum_dispatch;
+use std::path::Prefix;
 use thiserror::Error;
 
+mod array;
+mod bool;
+mod bulk_string;
+mod double;
 mod frame;
-mod simple_string;
+mod integer;
+mod map;
 mod null;
+mod set;
+mod simple_error;
+mod simple_string;
 
 pub use frame::*;
 
 pub use self::{
-    simple_string::*,
-    null::RespNull,
+    array::*, bool::*, bulk_string::*, double::*, integer::*, map::*, null::RespNull, set::*,
+    simple_error::*, simple_string::*,
 };
 
 const BUF_CAP: usize = 4096;
@@ -37,12 +46,17 @@ pub enum RespError {
 
     #[error("Invalid frame type: {0}")]
     InvalidFrameType(String),
+
+    #[error("Parse int error: {0}")]
+    ParseIntError(#[from] std::num::ParseIntError),
+    #[error("Parse float error: {0}")]
+    ParseFloatError(#[from] std::num::ParseFloatError),
 }
 
-
-fn extract_fixed_data(buf: &mut BytesMut,
-                      expect: &str,
-                      expect_type: &str,
+fn extract_fixed_data(
+    buf: &mut BytesMut,
+    expect: &str,
+    expect_type: &str,
 ) -> Result<(), RespError> {
     if buf.len() < expect.len() {
         return Err(RespError::NotComplete);
@@ -59,8 +73,7 @@ fn extract_fixed_data(buf: &mut BytesMut,
     Ok(())
 }
 
-
-fn extract_simple_from_data(buf: &[u8], prefix: &str) -> Result<usize, RespError> {
+fn extract_simple_frame_data(buf: &[u8], prefix: &str) -> Result<usize, RespError> {
     if buf.len() < 3 {
         return Err(RespError::NotComplete);
     }
@@ -89,4 +102,57 @@ fn find_crlf(buf: &[u8], nth: usize) -> Option<usize> {
     }
 
     None
+}
+
+fn parse_length(buf: &[u8], prefix: &str) -> Result<(usize, usize), RespError> {
+    let end = extract_simple_frame_data(buf, prefix)?;
+    let s = String::from_utf8_lossy(&buf[prefix.len()..end]);
+
+    Ok((end, s.parse()?))
+}
+
+fn calc_total_length(buf: &[u8], end: usize, len: usize, prefix: &str) -> Result<usize, RespError> {
+    let mut total = end + CRLF_LENGTH;
+    let mut data = &buf[total..];
+
+    match prefix {
+        "*" | "~" => {
+            for _ in 0..len {
+                let len = RespFrame::expect_length(data)?;
+
+                data = &data[len..];
+                total += len;
+            }
+            Ok(total)
+        }
+        "%" => {
+            for _ in 0..len {
+                let len = SimpleString::expect_length(data)?;
+
+                data = &data[len..];
+                total += len;
+
+                let len = RespFrame::expect_length(data)?;
+                data = &data[len..];
+                total += len;
+            }
+
+            Ok(total)
+        }
+        _ => Ok(len + CRLF_LENGTH),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+
+    #[test]
+    fn test_string_usize() -> Result<()> {
+        let s = "2";
+
+        let v: usize = s.parse()?;
+        assert_eq!(2, v);
+        Ok(())
+    }
 }
