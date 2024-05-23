@@ -1,6 +1,7 @@
+use bytes::BytesMut;
+
 use crate::resp::{extract_simple_frame_data, CRLF_LENGTH};
 use crate::{RespDecode, RespEncode, RespError};
-use bytes::BytesMut;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SimpleError(pub(crate) String);

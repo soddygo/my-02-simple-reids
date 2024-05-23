@@ -1,12 +1,11 @@
-use crate::resp::{
-    calc_total_length, extract_fixed_data, extract_simple_frame_data, parse_length, BUF_CAP, CRLF,
-    CRLF_LENGTH,
-};
-use crate::{RespDecode, RespEncode, RespError, RespFrame};
-use bytes::{Buf, BytesMut};
 use std::ops::Deref;
 
-#[derive(Debug, Clone, PartialEq)]
+use bytes::{Buf, BytesMut};
+
+use crate::resp::{calc_total_length, extract_fixed_data, parse_length, BUF_CAP, CRLF_LENGTH};
+use crate::{RespDecode, RespEncode, RespError, RespFrame};
+
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct RespArray(pub(crate) Vec<RespFrame>);
 
 #[derive(Debug, Clone, PartialEq)]
@@ -25,7 +24,9 @@ impl RespEncode for RespArray {
         buf
     }
 }
-
+// - array: "*<number-of-elements>\r\n<element-1>...<element-n>"
+// - "*2\r\n$3\r\nget\r\n$5\r\nhello\r\n"
+// FIXME: need to handle incomplete
 impl RespDecode for RespArray {
     const PREFIX: &'static str = "*";
 
@@ -67,7 +68,7 @@ impl RespDecode for RespNullArray {
         Ok(RespNullArray)
     }
 
-    fn expect_length(buf: &[u8]) -> Result<usize, RespError> {
+    fn expect_length(_buf: &[u8]) -> Result<usize, RespError> {
         Ok(5)
     }
 }

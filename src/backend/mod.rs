@@ -1,7 +1,9 @@
-use crate::RespFrame;
-use dashmap::DashMap;
 use std::ops::Deref;
 use std::sync::Arc;
+
+use dashmap::DashMap;
+
+use crate::RespFrame;
 
 #[derive(Debug, Clone)]
 pub struct Backend(Arc<BackendInner>);
@@ -47,7 +49,7 @@ impl Backend {
             .get(key)
             .and_then(|v| v.get(field).map(|v| v.value().clone()))
     }
-    pub fn hgetall(&self, key: &str, sort: bool) -> Option<DashMap<String, RespFrame>> {
+    pub fn hgetall(&self, key: &str) -> Option<DashMap<String, RespFrame>> {
         self.hmap.get(key).map(|v| v.clone())
     }
     pub fn hset(&self, key: String, field: String, value: RespFrame) {

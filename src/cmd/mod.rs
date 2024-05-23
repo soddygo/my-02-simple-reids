@@ -1,10 +1,14 @@
-mod hmap;
-mod map;
-
-use crate::{Backend, RespArray, RespError, RespFrame, SimpleString};
+use anyhow::Result;
 use enum_dispatch::enum_dispatch;
 use lazy_static::lazy_static;
+use log::info;
 use thiserror::Error;
+use tracing::warn;
+
+use crate::{Backend, RespArray, RespError, RespFrame, SimpleString};
+
+mod hmap;
+mod map;
 
 lazy_static! {
     static ref RESP_OK: RespFrame = SimpleString::new("OK").into();
@@ -20,7 +24,7 @@ pub enum CommandError {
     #[error("{0}")]
     RespError(#[from] RespError),
     #[error("Utf8 error:{0}")]
-    Utf8Error(#[from] std::str::Utf8Error),
+    Utf8Error(#[from] std::string::FromUtf8Error),
 }
 
 #[enum_dispatch]
@@ -72,6 +76,24 @@ pub struct HSet {
 #[derive(Debug)]
 pub struct Unrecognized;
 
+impl TryFrom<RespFrame> for Command {
+    type Error = CommandError;
+
+    fn try_from(value: RespFrame) -> Result<Self, Self::Error> {
+        match value {
+            RespFrame::Array(array) => array.try_into(),
+            _ => Err(CommandError::InvalidCommand(
+                "Command must be Array".to_string(),
+            )),
+        }
+    }
+}
+impl CommandExecutor for Unrecognized {
+    fn execute(self, _backend: &Backend) -> RespFrame {
+        RESP_OK.clone()
+    }
+}
+
 impl TryFrom<RespArray> for Command {
     type Error = CommandError;
 
@@ -83,7 +105,14 @@ impl TryFrom<RespArray> for Command {
                 b"hget" => Ok(HGet::try_from(value)?.into()),
                 b"hset" => Ok(HSet::try_from(value)?.into()),
                 b"hgetall" => Ok(HGetAll::try_from(value)?.into()),
-                _ => Ok(Unrecognized.into()),
+                b"COMMAND" => {
+                    info!("connect redis server");
+                    Ok(Unrecognized.into())
+                }
+                _ => {
+                    warn!("cmd unrecognized,cmd: {:?}", cmd);
+                    Ok(Unrecognized.into())
+                }
             },
             _ => Err(CommandError::InvalidCommand(
                 "Command must have a BulkString as the first argument".to_string(),
@@ -119,9 +148,13 @@ fn validate_command(
             _ => {
                 return Err(CommandError::InvalidCommand(
                     "Command must have a BulkString as the first argument".to_string(),
-                ))
+                ));
             }
         }
     }
     Ok(())
+}
+
+fn extract_args(value: RespArray, start: usize) -> Result<Vec<RespFrame>, CommandError> {
+    Ok(value.0.into_iter().skip(start).collect::<Vec<RespFrame>>())
 }

@@ -1,10 +1,12 @@
-use crate::resp::{calc_total_length, parse_length, BUF_CAP, CRLF_LENGTH};
-use crate::{RespDecode, RespEncode, RespError, RespFrame, SimpleString};
-use bytes::{Buf, BytesMut};
 use std::collections::BTreeMap;
 use std::ops::{Deref, DerefMut};
 
-#[derive(Debug, Clone, PartialEq)]
+use bytes::{Buf, BytesMut};
+
+use crate::resp::{calc_total_length, parse_length, BUF_CAP, CRLF_LENGTH};
+use crate::{RespDecode, RespEncode, RespError, RespFrame, SimpleString};
+
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct RespMap(pub(crate) BTreeMap<String, RespFrame>);
 
 //%<number-of-entries>\r\n<key-1><value-1>...<key-n><value-n>

@@ -1,6 +1,7 @@
+use bytes::BytesMut;
+
 use crate::resp::{extract_simple_frame_data, CRLF_LENGTH};
 use crate::{RespDecode, RespEncode, RespError};
-use bytes::BytesMut;
 
 //,[<+|->]<integral>[.<fractional>][<E|e>[sign]<exponent>]\r\n
 impl RespEncode for f64 {
@@ -39,7 +40,7 @@ impl RespDecode for f64 {
     }
 }
 
-// todo!("The positive infinity, negative infinity and NaN values are encoded as follows:")
+// fixme!("The positive infinity, negative infinity and NaN values are encoded as follows:")
 /*
 ,inf\r\n
 ,-inf\r\n

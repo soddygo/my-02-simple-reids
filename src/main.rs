@@ -1,6 +1,7 @@
 use anyhow::Result;
-use simple_redis::{network, Backend};
 use tracing::info;
+
+use simple_redis::{network, Backend};
 
 #[tokio::main]
 async fn main() -> Result<()> {

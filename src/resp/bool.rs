@@ -1,6 +1,7 @@
+use bytes::BytesMut;
+
 use crate::resp::extract_fixed_data;
 use crate::{RespDecode, RespEncode, RespError};
-use bytes::BytesMut;
 
 impl RespDecode for bool {
     const PREFIX: &'static str = "#";
@@ -9,14 +10,14 @@ impl RespDecode for bool {
         match extract_fixed_data(buf, "#t\r\n", "Bool") {
             Ok(_) => Ok(true),
             Err(RespError::NotComplete) => Err(RespError::NotComplete),
-            Err(R_) => match extract_fixed_data(buf, "#f\r\n", "Bool") {
+            Err(_) => match extract_fixed_data(buf, "#f\r\n", "Bool") {
                 Ok(_) => Ok(false),
                 Err(e) => Err(e),
             },
         }
     }
 
-    fn expect_length(buf: &[u8]) -> Result<usize, RespError> {
+    fn expect_length(_buf: &[u8]) -> Result<usize, RespError> {
         Ok(4)
     }
 }

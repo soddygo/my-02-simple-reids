@@ -1,7 +1,12 @@
 use bytes::{Buf, BytesMut};
 use enum_dispatch::enum_dispatch;
-use std::path::Prefix;
 use thiserror::Error;
+
+pub use frame::*;
+
+pub use self::{
+    array::*, bulk_string::*, map::*, null::RespNull, set::*, simple_error::*, simple_string::*,
+};
 
 mod array;
 mod bool;
@@ -14,13 +19,6 @@ mod null;
 mod set;
 mod simple_error;
 mod simple_string;
-
-pub use frame::*;
-
-pub use self::{
-    array::*, bool::*, bulk_string::*, double::*, integer::*, map::*, null::RespNull, set::*,
-    simple_error::*, simple_string::*,
-};
 
 const BUF_CAP: usize = 4096;
 const CRLF: &[u8] = b"\r\n";

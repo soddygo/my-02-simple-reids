@@ -1,6 +1,7 @@
-use crate::resp::{extract_simple_frame_data, CRLF_LENGTH};
-use crate::{RespDecode, RespEncode, RespError, RespFrame};
 use bytes::BytesMut;
+
+use crate::resp::{extract_simple_frame_data, CRLF_LENGTH};
+use crate::{RespDecode, RespEncode, RespError};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SimpleString(pub(crate) String);
@@ -38,10 +39,11 @@ impl RespDecode for SimpleString {
 
 #[cfg(test)]
 mod test {
-    use super::*;
+    use crate::RespFrame;
     use anyhow::Result;
     use bytes::BufMut;
-    use tokio_util::codec::Framed;
+
+    use super::*;
 
     #[test]
     fn test_simple_string_encode() -> Result<()> {

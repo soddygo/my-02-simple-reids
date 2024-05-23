@@ -1,10 +1,16 @@
-use crate::{RespDecode, RespEncode, RespError};
-use bytes::BytesMut;
 use std::ops::Deref;
 use std::str::FromStr;
 
+use bytes::{Buf, BytesMut};
+
+use crate::resp::{extract_fixed_data, parse_length, CRLF_LENGTH};
+use crate::{RespDecode, RespEncode, RespError};
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct BulkString(pub(crate) Vec<u8>);
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RespNullBulkString;
 
 impl RespEncode for BulkString {
     fn encode(self) -> Vec<u8> {
@@ -22,14 +28,49 @@ impl RespEncode for BulkString {
 }
 
 impl RespDecode for BulkString {
-    const PREFIX: &'static str = "&";
+    const PREFIX: &'static str = "$";
 
     fn decode(buf: &mut BytesMut) -> Result<Self, RespError> {
-        todo!()
+        let (end, len) = parse_length(buf, Self::PREFIX)?;
+        let remained = &buf[end + CRLF_LENGTH..];
+        if remained.len() < len + CRLF_LENGTH {
+            return Err(RespError::NotComplete);
+        }
+
+        buf.advance(end + CRLF_LENGTH);
+
+        let data = buf.split_to(len + CRLF_LENGTH);
+        Ok(BulkString::new(data[..len].to_vec()))
     }
 
     fn expect_length(buf: &[u8]) -> Result<usize, RespError> {
-        todo!()
+        let (end, len) = parse_length(buf, Self::PREFIX)?;
+        Ok(end + CRLF_LENGTH + len + CRLF_LENGTH)
+    }
+}
+
+impl RespDecode for RespNullBulkString {
+    const PREFIX: &'static str = "$";
+
+    fn decode(buf: &mut BytesMut) -> Result<Self, RespError> {
+        extract_fixed_data(buf, "$-1\r\n", "NullBulkString")?;
+        Ok(RespNullBulkString)
+    }
+
+    fn expect_length(_buf: &[u8]) -> Result<usize, RespError> {
+        Ok(5)
+    }
+}
+
+impl RespEncode for RespNullBulkString {
+    fn encode(self) -> Vec<u8> {
+        b"$-1\r\n".to_vec()
+    }
+}
+
+impl BulkString {
+    pub fn new(s: impl Into<Vec<u8>>) -> Self {
+        BulkString(s.into())
     }
 }
 
