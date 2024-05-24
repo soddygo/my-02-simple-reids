@@ -1,4 +1,10 @@
 # Geektime Rust 语言训练营
+## 作业
+实现了命令： echo
+本地集成测试echo命令通过
+![img.png](img.png)
+
+
 
 ## 环境设置
 
