@@ -36,7 +36,6 @@ pub async fn stream_handler(stream: TcpStream, backend: Backend) -> Result<()> {
     loop {
         match framed.next().await {
             Some(Ok(frame)) => {
-                info!("recv frame:{:?}", frame);
                 let req = RedisRequest {
                     frame,
                     backend: backend.clone(),

@@ -7,6 +7,7 @@ use tracing::warn;
 
 use crate::{Backend, RespArray, RespError, RespFrame, SimpleString};
 
+mod echo;
 mod hmap;
 mod map;
 
@@ -40,6 +41,7 @@ pub enum Command {
     HGet(HGet),
     HGetAll(HGetAll),
     HSet(HSet),
+    Echo(Echo),
     Unrecognized(Unrecognized),
 }
 
@@ -76,6 +78,11 @@ pub struct HSet {
 #[derive(Debug)]
 pub struct Unrecognized;
 
+#[derive(Debug)]
+pub struct Echo {
+    value: String,
+}
+
 impl TryFrom<RespFrame> for Command {
     type Error = CommandError;
 
@@ -105,6 +112,7 @@ impl TryFrom<RespArray> for Command {
                 b"hget" => Ok(HGet::try_from(value)?.into()),
                 b"hset" => Ok(HSet::try_from(value)?.into()),
                 b"hgetall" => Ok(HGetAll::try_from(value)?.into()),
+                b"echo" => Ok(Echo::try_from(value)?.into()),
                 b"COMMAND" => {
                     info!("connect redis server");
                     Ok(Unrecognized.into())
