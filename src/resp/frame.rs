@@ -2,14 +2,14 @@ use bytes::BytesMut;
 use enum_dispatch::enum_dispatch;
 use log::{info, warn};
 
-use crate::resp::array::{RespArray, RespNullArray};
+use crate::resp::array::RespArray;
 use crate::resp::bulk_string::BulkString;
 use crate::resp::map::RespMap;
 use crate::resp::null::RespNull;
 use crate::resp::set::RespSet;
 use crate::resp::simple_error::SimpleError;
 use crate::resp::simple_string::SimpleString;
-use crate::{RespDecode, RespError, RespNullBulkString};
+use crate::{RespDecode, RespError};
 
 #[enum_dispatch(RespEncode)]
 #[derive(Debug, Clone, PartialEq)]
@@ -18,10 +18,8 @@ pub enum RespFrame {
     Null(RespNull),
     Double(f64),
     Array(RespArray),
-    NullArray(RespNullArray),
     Map(RespMap),
     BulkString(BulkString),
-    NullBulkString(RespNullBulkString),
     SimpleError(SimpleError),
     Bool(bool),
     Integer(i64),
@@ -51,24 +49,24 @@ impl RespDecode for RespFrame {
             }
             Some(b'$') => {
                 // try null bulk string first
-                match RespNullBulkString::decode(buf) {
+                match BulkString::decode(buf) {
                     Ok(frame) => Ok(frame.into()),
                     Err(RespError::NotComplete) => Err(RespError::NotComplete),
-                    Err(_) => {
-                        let frame = BulkString::decode(buf)?;
-                        Ok(frame.into())
-                    }
+                    Err(_) => Err(RespError::InvalidFrameType(format!(
+                        "invalid frame type: {:?}",
+                        String::from_utf8_lossy(buf)
+                    ))),
                 }
             }
             Some(b'*') => {
                 // try null array first
-                match RespNullArray::decode(buf) {
+                match RespArray::decode(buf) {
                     Ok(frame) => Ok(frame.into()),
                     Err(RespError::NotComplete) => Err(RespError::NotComplete),
-                    Err(_) => {
-                        let frame = RespArray::decode(buf)?;
-                        Ok(frame.into())
-                    }
+                    Err(_) => Err(RespError::InvalidFrameType(format!(
+                        "invalid frame type: {:?}",
+                        String::from_utf8_lossy(buf)
+                    ))),
                 }
             }
             Some(b'_') => {

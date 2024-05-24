@@ -18,7 +18,7 @@ impl CommandExecutor for HGetAll {
         let hmap = backend.hmap.get(&self.key);
 
         match hmap {
-            None => RespArray::new([]).into(),
+            None => RespArray::nill_new().into(),
             Some(dashmap) => {
                 let mut data = Vec::with_capacity(dashmap.len());
                 for v in dashmap.iter() {

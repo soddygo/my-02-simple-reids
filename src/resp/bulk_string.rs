@@ -3,27 +3,29 @@ use std::str::FromStr;
 
 use bytes::{Buf, BytesMut};
 
-use crate::resp::{extract_fixed_data, parse_length, CRLF_LENGTH};
+use crate::resp::{parse_length, parse_length_for_nullable, CRLF_LENGTH};
 use crate::{RespDecode, RespEncode, RespError};
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct BulkString(pub(crate) Vec<u8>);
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct RespNullBulkString;
-
+pub struct BulkString(pub(crate) Vec<u8>, pub(crate) bool);
 impl RespEncode for BulkString {
     fn encode(self) -> Vec<u8> {
         //$<length>\r\n<data>\r\n
-        let mut buf = Vec::with_capacity(self.0.len() + 16);
 
-        buf.extend_from_slice(&format!("${}\r\n", self.len()).into_bytes());
+        if self.1 {
+            //nill bulk string
+            b"$-1\r\n".to_vec()
+        } else {
+            let mut buf = Vec::with_capacity(self.0.len() + 16);
 
-        buf.extend_from_slice(&self);
+            buf.extend_from_slice(&format!("${}\r\n", self.len()).into_bytes());
 
-        buf.extend_from_slice(b"\r\n");
+            buf.extend_from_slice(&self);
 
-        buf
+            buf.extend_from_slice(b"\r\n");
+
+            buf
+        }
     }
 }
 
@@ -31,16 +33,22 @@ impl RespDecode for BulkString {
     const PREFIX: &'static str = "$";
 
     fn decode(buf: &mut BytesMut) -> Result<Self, RespError> {
-        let (end, len) = parse_length(buf, Self::PREFIX)?;
+        // $-1\r\n  ,空值兼容处理，判断长度len是否-1
+        let (end, len) = parse_length_for_nullable(buf, Self::PREFIX)?;
         let remained = &buf[end + CRLF_LENGTH..];
-        if remained.len() < len + CRLF_LENGTH {
-            return Err(RespError::NotComplete);
+
+        if len == -1 {
+            Ok(BulkString::nill_new())
+        } else {
+            if remained.len() < len as usize + CRLF_LENGTH {
+                return Err(RespError::NotComplete);
+            }
+
+            buf.advance(end + CRLF_LENGTH);
+
+            let data = buf.split_to(len as usize + CRLF_LENGTH);
+            Ok(BulkString::new(data[..len as usize].to_vec()))
         }
-
-        buf.advance(end + CRLF_LENGTH);
-
-        let data = buf.split_to(len + CRLF_LENGTH);
-        Ok(BulkString::new(data[..len].to_vec()))
     }
 
     fn expect_length(buf: &[u8]) -> Result<usize, RespError> {
@@ -49,28 +57,13 @@ impl RespDecode for BulkString {
     }
 }
 
-impl RespDecode for RespNullBulkString {
-    const PREFIX: &'static str = "$";
-
-    fn decode(buf: &mut BytesMut) -> Result<Self, RespError> {
-        extract_fixed_data(buf, "$-1\r\n", "NullBulkString")?;
-        Ok(RespNullBulkString)
-    }
-
-    fn expect_length(_buf: &[u8]) -> Result<usize, RespError> {
-        Ok(5)
-    }
-}
-
-impl RespEncode for RespNullBulkString {
-    fn encode(self) -> Vec<u8> {
-        b"$-1\r\n".to_vec()
-    }
-}
-
 impl BulkString {
     pub fn new(s: impl Into<Vec<u8>>) -> Self {
-        BulkString(s.into())
+        BulkString(s.into(), false)
+    }
+    //nill 类型类型
+    pub fn nill_new() -> Self {
+        BulkString(vec![], true)
     }
 }
 
@@ -92,18 +85,18 @@ impl FromStr for BulkString {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(BulkString(s.as_bytes().to_vec()))
+        Ok(BulkString::new(s.as_bytes().to_vec()))
     }
 }
 
 impl From<String> for BulkString {
     fn from(value: String) -> Self {
-        BulkString(value.into_bytes())
+        BulkString::new(value.into_bytes())
     }
 }
 
 impl<const N: usize> From<&[u8; N]> for BulkString {
     fn from(value: &[u8; N]) -> Self {
-        BulkString(value.to_vec())
+        BulkString::new(value.to_vec())
     }
 }
