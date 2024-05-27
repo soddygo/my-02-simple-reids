@@ -109,6 +109,14 @@ fn parse_length(buf: &[u8], prefix: &str) -> Result<(usize, usize), RespError> {
     Ok((end, s.parse()?))
 }
 
+//字符串null定义： $-1\r\n， 长度可能是-1
+fn parse_length_for_nullable(buf: &[u8], prefix: &str) -> Result<(usize, isize), RespError> {
+    let end = extract_simple_frame_data(buf, prefix)?;
+    let s = String::from_utf8_lossy(&buf[prefix.len()..end]);
+
+    Ok((end, s.parse()?))
+}
+
 fn calc_total_length(buf: &[u8], end: usize, len: usize, prefix: &str) -> Result<usize, RespError> {
     let mut total = end + CRLF_LENGTH;
     let mut data = &buf[total..];
