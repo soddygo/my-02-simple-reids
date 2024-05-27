@@ -1,9 +1,26 @@
 # Geektime Rust 语言训练营
 ## 作业
-实现了命令： echo
+## 实现了命令： echo
 本地集成测试echo命令通过
 ![img.png](img.png)
 
+### 关于nill实现替换
+
+```
+重构代码：
+删除 NullBulkString / NullArray
+重构 BulkString / RespArray 代码，使其直接处理上面两种情况
+```
+
+数组的空,看分2种:
+* b"*-1\r\n"
+* b"*0\r\n"
+
+只靠RespArray的成员属性Vec<RespFrame>是无法区分返回哪种空的,因此增加第二个属性bool来标识是否是nill(即:b"*-1\r\n"的场景),这样使用,可以根据实情况,切换使用对应的空数组的
+
+## 作业遗留问题
+* b"*-1\r\n" ,这种nill场景,不知道redis-cli 命令行上,如何复现二级制是这种的情况
+* 缺失足够的单元测试,进行验证..只是简单的做了集成测试,在命令行中作了简单测试
 
 
 ## 环境设置
